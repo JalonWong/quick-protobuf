@@ -600,9 +600,17 @@ impl Reader {
 }
 
 /// Deserialize a `MessageRead from a `&[u8]`
-pub fn deserialize_from_slice<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
+///
+/// There is a length in front of the data.
+pub fn deserialize_from_slice_with_len<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
     let mut reader = BytesReader::from_bytes(&bytes);
     reader.read_message::<M>(&bytes)
+}
+
+/// Deserialize a `MessageRead from a `&[u8]`
+pub fn deserialize_from_slice<'a, M: MessageRead<'a>>(bytes: &'a [u8]) -> Result<M> {
+    let mut reader = BytesReader::from_bytes(&bytes);
+    M::from_reader(&mut reader, bytes)
 }
 
 #[test]
