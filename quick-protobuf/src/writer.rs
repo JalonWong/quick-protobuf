@@ -51,13 +51,13 @@ use byteorder::WriteBytesExt;
 ///     writer.write_message(&foobar).expect("Cannot write FooBar");
 /// }
 /// ```
-pub struct Writer<W: WriterBackend> {
-    inner: W,
+pub struct Writer<'a, W: WriterBackend> {
+    inner: &'a mut W,
 }
 
-impl<W: WriterBackend> Writer<W> {
+impl<'a, W: WriterBackend> Writer<'a, W> {
     /// Creates a new `ProtobufWriter`
-    pub fn new(w: W) -> Writer<W> {
+    pub fn new(w: &'a mut W) -> Writer<'a, W> {
         Writer { inner: w }
     }
 
@@ -319,17 +319,27 @@ pub fn serialize_into_vec<M: MessageWrite>(message: &M) -> Result<Vec<u8>> {
 }
 
 /// Serialize a `MessageWrite` into a byte slice
-pub fn serialize_into_slice<M: MessageWrite>(message: &M, out: &mut [u8]) -> Result<usize> {
+///
+/// There is a length in front of the data.
+pub fn serialize_into_slice_with_len<M: MessageWrite>(message: &M, out: &mut [u8]) -> Result<()> {
     let len = message.get_size();
     if out.len() < len {
         return Err(Error::OutputBufferTooSmall);
     }
     {
-        let mut writer = Writer::new(BytesWriter::new(out));
+        let mut w = BytesWriter::new(out);
+        let mut writer = Writer::new(&mut w);
         writer.write_message(message)?;
     }
 
-    Ok(len)
+    Ok(())
+}
+
+/// Serialize a `MessageWrite` into a byte slice
+pub fn serialize_into_slice<M: MessageWrite>(message: &M, out: &mut [u8]) -> Result<usize> {
+    let mut w = BytesWriter::new(out);
+    message.write_message(&mut Writer::new(&mut w))?;
+    Ok(w.len())
 }
 
 /// Writer backend abstraction
